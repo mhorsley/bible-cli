@@ -1,0 +1,152 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+var bible = require('../bible');
+var package = require('../package.json');
+var readline = require('readline');
+var _ = require('underscore');
+
+program.version(package.version)
+
+program.option('-i, --interactive', 'Interactive Mode');
+
+program.command('parse')
+	.description('Parse a Unbound Format Bible to JSON')
+	.action(function(bookfile, biblefile) {
+	console.log(bookfile, biblefile);
+	bible.unboundToJson(bookfile, biblefile);
+});
+
+program.command('list')
+	.description('List available versions.')
+	.action(function() {
+	console.log('Available Versions:');
+	console.log('------------------');
+	bible.versions(function(list) {
+		_.each(list, function(val) {
+			console.log(val);
+		});
+	});
+});
+
+program.parse(process.argv);
+
+if (program.interactive) {
+	startInteractive();
+}
+
+function startInteractive(program) {
+
+	var rl = readline.createInterface({
+		input: process.stdin,
+		output: process.stdout,
+		completer: completer
+	});
+
+	rl.setPrompt('bible> ');
+	rl.prompt();
+
+	rl.on('line', function(line) {
+
+		bible.reference(line, function(ref, data) {
+			console.log(formatReference(ref));
+			console.log(formatPassage(data));
+			rl.prompt();
+		});
+
+	})
+		.on('close', function() {
+		console.log('Have a nice day');
+		process.exit(0);
+	});
+
+};
+
+function formatPassage(data) {
+	var result = '';
+	
+	if(typeof data == 'string' || data instanceof String)
+	{
+		result = '\t' + data.smoosh(50);
+	} else {
+		_.each(data, function(val, key) {
+			result += '------------\n';
+			result += key + '\t' + val.smoosh(50) + '\n';
+		});
+	}
+
+	return result;
+}
+
+function formatReference(ref) {
+	var stringref = 'Not a valid reference';
+	if (ref.bookname) stringref = ref.bookname;
+	if (ref.chapter) stringref += ' ' + ref.chapter;
+	if (ref.verse) stringref += ':' + ref.verse;
+	return stringref;
+}
+
+function parseReference(stringRef) {
+	var splits = stringRef.split(' ');
+
+	var bookname;
+	var chapter;
+	var verse;
+
+	var splits2;
+
+	if (bible.loadedversion.books[splits[0]]) bookname = splits[0].trim();
+	if (splits && splits[1]) splits2 = splits[1].split(':');
+	if (splits2 && splits[1].indexOf(':') != -1) chapter = splits2[0].trim();
+	if (splits2 && splits2[1]) verse = splits2[1].trim();
+	return {
+		bookname: bookname,
+		chapter: chapter,
+		verse: verse
+	};
+}
+
+function completer(line) {
+
+	var completions = _.map(bible.loadedversion.books, function(val, key) {
+		return key;
+	});
+
+	//check conditions
+	var ref = parseReference(line);
+
+	// 2 - line contains a book and no chapter
+	if (ref.bookname) {
+		completions = _.map(bible.loadedversion.books[ref.bookname], function(val, key) {
+			return ref.bookname + ' ' + key;
+		});
+	}
+
+	if (ref.bookname && ref.chapter) {
+		completions = _.map(bible.loadedversion.books[ref.bookname][ref.chapter], function(val, key) {
+			return ref.bookname + ' ' + ref.chapter + ':' + key;
+		});
+	}
+
+	var hits = completions.filter(function(c) {
+		return c.indexOf(line) == 0;
+	});
+
+	var a = [hits.length ? hits : completions, line];
+	//console.log(a);
+	return a;
+}
+
+String.prototype.smoosh = function(width) {
+	var result = '';
+	var original = this;
+	
+	while(original.length > width) {
+		result += original.substring(0, width);
+		original = original.substring(width).replace(' ', '\n\t');
+	}
+	result += original;
+	
+	
+	return result;
+}

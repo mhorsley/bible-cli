@@ -1,0 +1,25 @@
+{
+  "name" : "bible-cli",
+  "version" : "0.0.1",
+  "description" : "Bible CLI",
+  "dependencies": {
+    "commander": "*",
+	"underscore": "*",
+	"line-reader": "*"
+  },
+  "main": "./bin",
+  "directories": {
+	  "bin": "./bin"
+  },
+  "repository": {
+	  "type": "git",
+	  "url": "https://github.com/acoll/bible-cli.git"
+  },
+  "scripts": {
+	  "test": "./bin/bible-cli -h"
+  },
+  "author": {
+	  "name": "Adam Coll",
+	  "email": "me@adamcoll.com"
+  }
+}
