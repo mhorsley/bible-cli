@@ -1,0 +1,100 @@
+#!/usr/bin/env node
+
+var program = require('commander');
+var Bible = require('../lib/bible');
+var Library = require('../lib/library');
+var pkg = require('../package.json');
+var readline = require('readline');
+var _ = require('underscore');
+var utils = require('../lib/utils');
+
+var bible = new Bible();
+
+//Program Version
+program.version(pkg.version);
+
+//commands
+program.command('lookup <reference> [cv]')
+	.description('Lookup Reference')
+	.action(function(book, cv) {
+	console.log();
+	var stringref = book;
+	if(cv) stringref += ' ' + cv;
+	bible.lookup(stringref, function(data) {
+		var x = utils.formatScripture(data);
+		console.log(x);
+		rl.prompt();
+	});
+})
+	.completions = _.map(bible.bible.books, function(val, key) {
+	return key;
+});
+
+program.command('list')
+	.description('List available translations.')
+	.action(function() {
+	Library.translations(function(list) {
+		console.log();
+		list.forEach(function(val) {
+			console.log(val);
+		});
+		console.log();
+		rl.prompt();
+	});
+});
+
+program.command('help')
+	.description('Display Help')
+	.action(function() {
+	program.outputHelp();
+	rl.prompt();
+});
+
+program.command('*')
+	.description('Catch All')
+	.action(function() {
+	console.log();
+	console.log('Unknown Command');
+	console.log();
+	rl.prompt();
+});
+
+program.completer = function(line) {
+	var completions = [];
+
+	program.commands.forEach(function(cmd, index) {
+		if (cmd.completions) {
+			cmd.completions.forEach(function(c, index) {
+				completions.push(cmd._name + ' ' + c);
+			});
+		} else {
+			completions.push(cmd._name);
+		}
+	});
+
+	var hits = completions.filter(function(c) {
+		return c.indexOf(line) == 0;
+	});
+
+	return [hits.length ? hits : completions, line];
+};
+
+//Default action = startup interactive
+var rl = readline.createInterface({
+	input: process.stdin,
+	output: process.stdout,
+	completer: program.completer
+});
+
+rl.setPrompt(pkg.name + '>');
+rl.prompt();
+
+rl.on('line', function(line) {
+	var args = ['', ''].concat(line.split(' '));
+	program.parse(args);
+});
+
+rl.on('close', function() {
+	console.log('See you another day');
+	process.exit();
+});
